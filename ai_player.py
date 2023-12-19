@@ -1,6 +1,5 @@
-import numpy as np
-from collections import deque
 from base_player import BasePlayer
+import numpy as np
 
 class AIPlayer(BasePlayer):
     def choose_tile(self, board, *args) -> tuple:
@@ -20,11 +19,11 @@ class AIPlayer(BasePlayer):
             Indices of the resulting tile.
 
         """
-        return self.enhanced_heuristic(board)
+        return self.improved_heuristic(board)
 
-    def enhanced_heuristic(self, board) -> tuple:
+    def improved_heuristic(self, board) -> tuple:
         """
-        Enhanced heuristic for AI move.
+        Improved heuristic for AI move.
 
         Parameters
         ----------
@@ -46,15 +45,15 @@ class AIPlayer(BasePlayer):
 
         # Sort moves by their scores in descending order
         sorted_moves = sorted(scores, key=lambda x: x[1], reverse=True)
-
+    
         # Select the move with the highest score
         chosen_move = sorted_moves[0][0]
-
+        
         return chosen_move
 
     def evaluate_move(self, board, move) -> float:
         """
-        Evaluates a move using an enhanced heuristic.
+        Evaluates a move using an improved heuristic.
 
         Parameters
         ----------
@@ -70,89 +69,87 @@ class AIPlayer(BasePlayer):
 
         """
         opponent_id = 3 - self.id  # Assuming player ids are 1 and 2
-        # Calculate the distance to the opponent's sides
-        distance_to_opponent_sides = self.distance_to_opponent_sides(board, move, opponent_id)
+
         # Calculate the distance to the closest opponent tile
         min_distance_to_opponent = self.min_distance_to_opponent(board, move, opponent_id)
-        # Combine these factors to get a score
-        score = 1 / (1 + min_distance_to_opponent) + 1 / (1 + distance_to_opponent_sides)
 
+        # Calculate the distance to the center of the board
+        distance_to_center = self.distance_to_center(board, move)
+
+        # Calculate the number of neighboring tiles controlled by the AI player
+        ai_controlled_neighbors = self.count_ai_controlled_neighbors(board, move)
+
+        # Introduce some randomness to avoid purely horizontal and vertical moves
+        randomness = np.random.uniform(0.8, 1.2)
+
+        # Combine these factors to get a score
+        score = (
+            1 / (1 + min_distance_to_opponent) +
+            0.5 / (1 + distance_to_center) * randomness +
+            0.3 * ai_controlled_neighbors
+        )
+        
         return score
 
     def min_distance_to_opponent(self, board, move, opponent_id) -> float:
-        queue = deque([(move, 0)])
-        visited = set()
+        distances = []
 
-        while queue:
-            current_pos, distance = queue.popleft()
-            i, j = current_pos
+        for i in range(board.dim()[1]):
+            for j in range(board.dim()[0]):
+                if board.get_tile(i, j) == opponent_id:
+                    distance = np.sqrt((i - move[0]) ** 2 + (j - move[1]) ** 2)
+                    distances.append(distance)
 
-            # Check if the current position is an opponent tile
-            if board.get_tile(i, j) == opponent_id:
-                return distance
+        if distances:
+            return min(distances)
+        else:
+            return float('inf')
 
-             # Add neighboring positions to the queue if not visited
-            neighbors = board.get_neighbors(i, j)
-
-            # Sort neighbors to prioritize downward direction
-            neighbors.sort(key=lambda x: x[0], reverse=True)
-
-            for neighbor in neighbors:
-                if neighbor not in visited:
-                    queue.append((neighbor, distance + 1))
-                    visited.add(neighbor)
-
-        return float('inf')
-  
-    def distance_to_opponent_sides(self, board, move, opponent_id) -> float:
-        queue = deque([(move, 0)])
-        visited = set()
-
-        while queue:
-            current_pos, distance = queue.popleft()
-            i, j = current_pos
-
-            # Check if the current position is on the opponent's side
-            if self.is_on_opponent_side(board, i, j, opponent_id):
-                return distance
-
-            # Add neighboring positions to the queue if not visited
-            neighbors = board.get_neighbors(i, j)
-            for neighbor in neighbors:
-                if neighbor not in visited:
-                    queue.append((neighbor, distance + 1))
-                    visited.add(neighbor)
-
-
-        return float('inf')  # Not on the opponent's side
-    
-    def is_on_opponent_side(self, board, i, j, opponent_id) -> bool:
+    def distance_to_center(self, board, move) -> float:
         """
-        Checks if the given position is on the opponent's side.
+        Calculates the distance from the chosen move to the center of the board.
 
         Parameters
         ----------
         board : HexBoard
             Current state of the Hex board.
-        i : int
-            Row index of the position.
-        j : int
-            Column index of the position.
-        opponent_id : int
-            ID of the opponent player.
+        move : tuple (int, int)
+            Indices of the chosen move.
 
         Returns
         -------
-        on_opponent_side : bool
-            True if the position is on the opponent's side, False otherwise.
+        distance : float
+            Distance from the move to the center of the board.
 
         """
-       # For player 1 (ID 1), check if the position is on the left side
-        if opponent_id == 1 and j == 0:
-            return True
+        center_row = board.dim()[1] // 2
+        center_col = board.dim()[0] // 2
 
-        # For player 2 (ID 2), check if the position is on the top side
-        if opponent_id == 2 and i == 0:
-            return True
+        i, j = move
+        distance = np.sqrt((i - center_row) ** 2 + (j - center_col) ** 2)
 
-        return False
+        return distance
+
+    def count_ai_controlled_neighbors(self, board, move) -> int:
+        """
+        Counts the number of neighboring tiles controlled by the AI player.
+
+        Parameters
+        ----------
+        board : HexBoard
+            Current state of the Hex board.
+        move : tuple (int, int)
+            Indices of the chosen move.
+
+        Returns
+        -------
+        count : int
+            Number of neighboring tiles controlled by the AI player.
+
+        """
+        i, j = move
+        neighbors = board.get_neighbors(i, j)
+
+        count = sum(board.get_tile(*neighbor) == self.id for neighbor in neighbors)
+
+        return count
