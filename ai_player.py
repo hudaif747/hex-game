@@ -85,8 +85,8 @@ class AIPlayer(BasePlayer):
         # Combine these factors to get a score
         score = (
             1 / (1 + min_distance_to_opponent) +
-            0.5 / (1 + distance_to_center) * randomness +
-            0.3 * ai_controlled_neighbors
+            0.2 / (1 + distance_to_center) * randomness +
+            0.5 * ai_controlled_neighbors
         )
         
         return score

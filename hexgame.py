@@ -192,3 +192,6 @@ class HexGame:
 class PuzzleHexGame(HexGame):
     def check_finish(self):
         return self.players[1].get_whether_terminated(self.board)
+
+    def get_winner(self) -> int:
+        return self.players[0].get_id() if self.players[0].get_whether_terminated(self.board) else 0

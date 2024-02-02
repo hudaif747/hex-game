@@ -20,3 +20,6 @@ class HumanPlayer(BasePlayer):
 
         """
         return args[0], args[1]
+    
+    def get_whether_terminated(self,board):
+        return 0

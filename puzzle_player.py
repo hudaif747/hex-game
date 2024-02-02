@@ -210,18 +210,18 @@ def _swap_colours_and_rotate_90_degrees(whole_board):
 def _embed_puzzle_in_full_sized_board(board_section, puzzle_tags, size) -> np.ndarray:
     arrows, edges = _get_arrows_and_edges(puzzle_tags)
     board = _surround_fill_puzzle(arrows, board_section, edges)
-    whole_board = _embed_in_wished_size(size, board, arrows, board_section.shape)
+    whole_board = _embed_in_wished_size(size, board, arrows, board_section)
     return whole_board
 
 
-def _embed_in_wished_size(size, board, arrows, puzzle_section_shape) -> np.ndarray:
+def _embed_in_wished_size(size, board, arrows, puzzle_section) -> np.ndarray:
     if size < max(board.shape[0], board.shape[1]):
         raise Exception('Size of board must be at least as large as puzzle.')
     whole_board = np.pad(board,
                          pad_width=((0, size - board.shape[0]), (0, size - board.shape[1])),
                          mode='constant',
                          constant_values=(-1, -1))
-    _connect_puzzle_board_to_frame(whole_board, arrows, puzzle_section_shape)
+    _connect_puzzle_board_to_frame(whole_board, arrows, puzzle_section)
     _colour_empty_fields_outside_puzzle(size, whole_board)
     return whole_board
 
@@ -255,7 +255,7 @@ def _get_arrows_and_edges(puzzle_tags) -> tuple:
     return arrows, edges
 
 
-def _connect_puzzle_board_to_frame(whole_board, arrows, puzzle_section_shape) -> None:
+def _connect_puzzle_board_to_frame(whole_board, arrows, puzzle_section) -> None:
     arrow_down = False
     arrow_up = False
     arrow_to_right = False
@@ -263,26 +263,63 @@ def _connect_puzzle_board_to_frame(whole_board, arrows, puzzle_section_shape) ->
 
     for x, y, arrow_direction in arrows:
         if arrow_direction == 'rotate(60)':
-            whole_board[x:, y] = np.ones(whole_board.shape[1] - x) * 1
+            if x == puzzle_section.shape[0] + 1 or np.all(puzzle_section[x:, y-1] == -1):
+                whole_board[x:, y] = np.ones(whole_board.shape[1] - x) * 1
+            elif y == 1 or np.all(puzzle_section[x-1:, y-2] == -1):
+                whole_board[x:, y-1] = np.ones(whole_board.shape[1] - x) * 1
+            elif y == puzzle_section.shape[1] or np.all(puzzle_section[x-1:, y] == -1):
+                whole_board[x:, y+1] = np.ones(whole_board.shape[1] - x) * 1
+            else:
+                _raise_not_implemented_error_with_puzzle_section_and_arrows_info(puzzle_section, arrows)
             arrow_down = True
+        elif arrow_direction == 'rotate(-120)':
+            if x == 1 or np.all(puzzle_section[:x-1, y-1] == -1):
+                whole_board[:x, y] = np.ones(x) * 1
+            elif y == 1 or np.all(puzzle_section[:x+1, y-2] == -1):
+                whole_board[:x+1, y-1] = np.ones(x+1) * 1
+            elif y == puzzle_section.shape[1] or np.all(puzzle_section[:x+1, y-1] == -1):
+                whole_board[:x+1, y+1] = np.ones(x+1) * 1
+            else:
+                _raise_not_implemented_error_with_puzzle_section_and_arrows_info(puzzle_section, arrows)
+            arrow_up = True
         elif arrow_direction == 'rotate(120)':
-            whole_board[x, :y] = np.ones(y) * 2
+            if y == 1 or np.all(puzzle_section[x-1, :y-1] == -1):
+                whole_board[x, :y] = np.ones(y) * 2
+            elif x == 1 or np.all(puzzle_section[x-2, :y-1] == -1):
+                whole_board[x-1, :y+1] = np.ones(y+1) * 2
+            elif x == puzzle_section.shape[0] or np.all(puzzle_section[x, :y] == -1):
+                whole_board[x+1, :y+1] = np.ones(y+1) * 2
+            else:
+                _raise_not_implemented_error_with_puzzle_section_and_arrows_info(puzzle_section, arrows)
             arrow_to_left = True
         elif arrow_direction == 'rotate(-60)':
-            whole_board[x, y:] = np.ones(whole_board.shape[0] - y) * 2
+            if y == puzzle_section.shape[1] + 1 or np.all(puzzle_section[x-1, y:] == -1):
+                whole_board[x, y:] = np.ones(whole_board.shape[0] - y) * 2
+            elif x == 1 or np.all(puzzle_section[x-2, y-1:] == -1):
+                whole_board[x-1, y:] = np.ones(whole_board.shape[0] - y) * 2
+            elif x == puzzle_section.shape[0] or np.all(puzzle_section[x, y-1:] == -1):
+                whole_board[x+1, y:] = np.ones(whole_board.shape[0] - y) * 2
+            else:
+                _raise_not_implemented_error_with_puzzle_section_and_arrows_info(puzzle_section, arrows)
             arrow_to_right = True
-        elif arrow_direction == 'rotate(-120)':
-            whole_board[:x, y] = np.ones(x) * 1
-            arrow_up = True
 
     if not arrow_up:
         whole_board[0, 1] = 1
     if not arrow_to_left:
         whole_board[1, 0] = 2
     if not arrow_to_right:
-        whole_board[1, puzzle_section_shape[1] + 1:] = np.ones(whole_board.shape[1] - puzzle_section_shape[1] - 1) * 2
+        row_to_use = min(*np.where(whole_board[:, puzzle_section.shape[1]+1] == 2))
+        whole_board[row_to_use, puzzle_section.shape[1] + 1:] = \
+            np.ones(whole_board.shape[1] - puzzle_section.shape[1] - 1) * 2
     if not arrow_down:
-        whole_board[puzzle_section_shape[0] + 1:, 1] = np.ones(whole_board.shape[0] - puzzle_section_shape[0] - 1)
+        column = min(*np.where(whole_board[puzzle_section.shape[0]+1, :] == 1))
+        whole_board[puzzle_section.shape[0] + 1:, column] = np.ones(whole_board.shape[0] - puzzle_section.shape[0] - 1)
+
+
+def _raise_not_implemented_error_with_puzzle_section_and_arrows_info(puzzle_section, arrows):
+    raise NotImplementedError('Please contact developer with the following information: \n'
+                              'Connection of board to frame with arrows missing puzzle_player with\n'
+                              'puzzle_section: \n' + str(puzzle_section) + '\n arrows: \n' + str(arrows))
 
 
 def _colour_empty_fields_outside_puzzle(size, whole_board) -> None:

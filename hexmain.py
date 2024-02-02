@@ -1,7 +1,10 @@
 from base_player import BasePlayer
 from random_player import RandomPlayer
 from human_player import HumanPlayer
-from ai_player import AIPlayer
+# from ai_player_improved import MinMaxPlayer
+from ai_player_improved_zobrist_2 import MinMaxPlayer
+# from WORKING_FINAL import MinMaxPlayer
+# from ai_player import AIPlayer
 from hexapp import HexApp
 
 import numpy as np
@@ -12,11 +15,12 @@ if __name__ == "__main__":
     swap1 = lambda board, *args: BasePlayer.pygame_manual_swap(board, *args)
     swap2 = lambda board, *args: BasePlayer.random_swap(board, *args)
 
-    player1 = AIPlayer()
-    player2 = RandomPlayer(swap2)
+    dim = 4
+    player1 = MinMaxPlayer(dimension=dim)
+    # player1 = MinMaxPlayer()
+    player2 = RandomPlayer()
 
     # Set up empty board
-    dim = 8
     board = np.zeros((dim, dim), dtype=int)
 
     # Manual changes
