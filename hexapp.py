@@ -14,6 +14,7 @@ class HexApp:
         self._running = None
         self.mouse_x = None
         self.mouse_y = None
+        self.fin = 0
 
         # Display related variables
         self._display_surf = None
@@ -82,11 +83,14 @@ class HexApp:
 
             fin = self.hex.check_finish()
             if fin > 0:
+                self.fin = fin
                 self.render()
                 time.sleep(0.5)
                 print("Player {:d} wins!".format(fin))
                 self._freeze = True
                 self._finish = True
+                synthetic_event = pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_1})
+                self.on_event(event=synthetic_event)
 
         if self._finish:
             if self._key_press:
@@ -148,7 +152,7 @@ class HexApp:
 
         self.cleanup()
 
-        return self._replay
+        return self._replay, self.fin
 
     def __get_tile_index(self, x_pos, y_pos):
         # Check if mouse position (x_pos, y_pos) corresponds to a tile (i, j)
